@@ -23,7 +23,7 @@ while read line; do
 			# symbol_name
 		echo -n "MAP_${INTR[2]} " >> sysmap.h
 			# address
-		echo "${INTR[0]}" >> sysmap.h
+		echo "0x${INTR[0]}" >> sysmap.h
 	fi
 done <$1
 echo "" >> sysmap.h
