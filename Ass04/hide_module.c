@@ -7,8 +7,12 @@
 #include <linux/syscalls.h> // for filp_open
 #include <linux/async.h>
 #include <linux/kmemleak.h>
-#include<linux/kthread.h>
+#include <linux/kthread.h>
 #include <linux/kobject.h>
+
+#include <linux/vmalloc.h>
+/* If this is set, the section belongs in the init part of the module */
+#define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
 #define DRIVER_AUTHOR "Moritz Dötterl <moritz.doetterl@tum.de>"
 #define DRIVER_DESC   "A sample kernel module: "
@@ -338,8 +342,66 @@ MODULE_DESCRIPTION(DRIVER_DESC);	/* Short description         */
 
 
 
+/*
+
+struct module* move_module_somewhere_else(struct module* mod){
+	//struct module* newmod;
+	int i;
+	void* ptr;
+
+	//newmod = kmalloc(mod->core_size);	// kernel uses vmalloc_exec(size) in move_module
+	ptr = vmalloc_exec(mod->core_size);
+	kmemleak_not_leak(ptr);
+	memset(ptr, 0, mod->core_size);
+	mod->module_core = ptr;
+
+*/
 
 
+
+/*
+	if (mod->init_size) {
+		ptr = module_alloc(mod->init_size);
+		 // The pointer to this block is stored in the module structure
+		 // which is inside the block. This block doesn't need to be
+		 // scanned as it contains data and code that will be freed
+		 // after the module is initialized.
+		kmemleak_ignore(ptr);
+		if (!ptr) {
+			module_memfree(mod->module_core);
+			return -ENOMEM;
+		}
+		memset(ptr, 0, mod->init_size);
+		mod->module_init = ptr;
+	} else
+		mod->module_init = NULL;
+*/
+/*
+	// Transfer each section which specifies SHF_ALLOC	
+	pr_debug("final section addresses:\n");
+	for (i = 0; i < info->hdr->e_shnum; i++) {
+		void *dest;
+		Elf_Shdr *shdr = &info->sechdrs[i];
+
+		if (!(shdr->sh_flags & SHF_ALLOC))
+			continue;
+
+		if (shdr->sh_entsize & INIT_OFFSET_MASK)
+			dest = mod->module_init
+				+ (shdr->sh_entsize & ~INIT_OFFSET_MASK);
+		else
+			dest = mod->module_core + shdr->sh_entsize;
+
+		if (shdr->sh_type != SHT_NOBITS)
+			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
+		// Update sh_addr to point to copy in image. 
+		shdr->sh_addr = (unsigned long)dest;
+		pr_debug("\t0x%lx %s\n",
+				(long)shdr->sh_addr, info->secstrings + shdr->sh_name);
+	}
+return mod;
+}
+*/
 
 /*
 void set_page_attributes(void *start, void *end, int (*set)(unsigned long start, int num_pages))
@@ -469,60 +531,3 @@ static void free_module_modifyed(struct module *mod)
 #endif
 }
  */
-/*
-struct module* move_module_somewhere_else(struct module* mod){
-	struct module* newmod;
-	void* ptr;
-
-	//newmod = kmalloc(mod->core_size);	// kernel uses vmalloc_exec(size) in move_module
-	ptr = vmalloc_exec(mod->core_size);
-	kmemleak_not_leak(ptr);
-	memset(ptr, 0, mod->core_size);
-	mod->module_core = ptr;
-
-
-
-
-
-
-	if (mod->init_size) {
-		ptr = module_alloc(mod->init_size);
-		 // The pointer to this block is stored in the module structure
-		 // which is inside the block. This block doesn't need to be
-		 // scanned as it contains data and code that will be freed
-		 // after the module is initialized.
-		kmemleak_ignore(ptr);
-		if (!ptr) {
-			module_memfree(mod->module_core);
-			return -ENOMEM;
-		}
-		memset(ptr, 0, mod->init_size);
-		mod->module_init = ptr;
-	} else
-		mod->module_init = NULL;
-
-	// Transfer each section which specifies SHF_ALLOC	
-	pr_debug("final section addresses:\n");
-	for (i = 0; i < info->hdr->e_shnum; i++) {
-		void *dest;
-		Elf_Shdr *shdr = &info->sechdrs[i];
-
-		if (!(shdr->sh_flags & SHF_ALLOC))
-			continue;
-
-		if (shdr->sh_entsize & INIT_OFFSET_MASK)
-			dest = mod->module_init
-				+ (shdr->sh_entsize & ~INIT_OFFSET_MASK);
-		else
-			dest = mod->module_core + shdr->sh_entsize;
-
-		if (shdr->sh_type != SHT_NOBITS)
-			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
-		// Update sh_addr to point to copy in image. 
-		shdr->sh_addr = (unsigned long)dest;
-		pr_debug("\t0x%lx %s\n",
-				(long)shdr->sh_addr, info->secstrings + shdr->sh_name);
-	}
-return mod;
-}
-*/	
