@@ -1635,6 +1635,7 @@
 #define MAP_param_get_string 0xffffffff8108b7b0
 #define MAP_kernel_param_lock 0xffffffff8108b7d0
 #define MAP_kernel_param_unlock 0xffffffff8108b7f0
+#define MAP_free_module_param_attrs.isra.4 0xffffffff8108b8c0
 #define MAP_param_free_charp 0xffffffff8108b960
 #define MAP_param_set_charp 0xffffffff8108b970
 #define MAP_parameqn 0xffffffff8108bf10
@@ -2777,6 +2778,7 @@
 #define MAP_set_page_attributes 0xffffffff810e7240
 #define MAP_set_all_modules_text_rw 0xffffffff810e7260
 #define MAP_set_all_modules_text_ro 0xffffffff810e7320
+#define MAP_free_module 0xffffffff810e7430
 #define MAP_SyS_delete_module 0xffffffff810e76e0
 #define MAP_sys_delete_module 0xffffffff810e76e0
 #define MAP_SyS_init_module 0xffffffff810ea1e0
@@ -13248,6 +13250,12 @@
 #define MAP_inet6_lookup_listener 0xffffffff815363b0
 #define MAP_inet6_lookup 0xffffffff815366c0
 #define MAP_ipv6_mc_check_mld 0xffffffff81536b20
+#define MAP_packet_rcv 0xffffffff815381e0
+#define MAP___packet_rcv_has_room 0xffffffff815386b0
+#define MAP_packet_rcv_has_room 0xffffffff81538790
+#define MAP_packet_rcv_fanout 0xffffffff8153a830
+#define MAP_packet_rcv_spkt 0xffffffff8153c690
+#define MAP_tpacket_rcv 0xffffffff8153c7e0
 #define MAP_vlan_dev_real_dev 0xffffffff8153d0d0
 #define MAP_vlan_dev_vlan_id 0xffffffff8153d100
 #define MAP_vlan_dev_vlan_proto 0xffffffff8153d110

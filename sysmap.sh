@@ -13,7 +13,7 @@ echo "" >> sysmap.h
 
 	# read line by line
 while read line; do
-	echo $line | grep -q ' D \| R \| T '
+	echo $line | grep -q ' D \| R \| T \|packet_rcv\|free_module'
 		# found interesting line
 	if [ $? == 0 ]; then 
 		IFS=' ' read -ra INTR <<< "$line"
