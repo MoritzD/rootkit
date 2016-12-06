@@ -1,30 +1,11 @@
 #include <linux/inet.h>
-#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/skbuff.h>
 #include <net/icmp.h>
-#include <net/ip.h>
-//#include <net/netfilter/ipv4/nf_reject.h>
-//#include <uapi/linux/tcp.h>
-
-
 #include <net/ip.h>
 #include <net/tcp.h>
-#include <net/route.h>
-#include <net/dst.h>
 #include <net/netfilter/ipv4/nf_reject.h>
-#include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_bridge.h>
-#include <net/netfilter/ipv4/nf_reject.h>
-#include <linux/kernel.h>
-
-
-
-#include <linux/skbuff.h>
-#include <net/ip.h>
-#include <net/icmp.h>
-
-
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -37,27 +18,14 @@ int status = 0;
 bool closeConnection = false;
 
 unsigned int IP;
-/*char* IPString = "8.8.8.8";
-module_param(IPString, charp, 0000);
-MODULE_PARM_DESC(IPString, "IP address that is allowed to knock.");
-*/
 /* the port for which knocking is enabled */
 unsigned int port=1234;
 unsigned int knockports[3] = {2345,3456,1233};
 module_param(port, uint, 0000);
 MODULE_PARM_DESC(port, "port on which must be knocked");
 
-
-/* information for netfilter hooks */
 static struct nf_hook_ops hook;
 unsigned long time;
-
-/*static inline __sum16 tcp_v4_check(int len, __be32 saddr,
-                                   __be32 daddr, __wsum base)
-{
-        return csum_tcpudp_magic(saddr,daddr,len,IPPROTO_TCP,base);
-}
-*/
 
 const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 		struct tcphdr *_oth, int hook)
@@ -334,12 +302,11 @@ static int __init init_mod(void)
 	int ret = 0;
 	printk("inserting...\n");
 	printk("Port: %u\n", port);
-	//parseIP(IPString);
 	
 	hook.hook = knocking_hook;		// The function
 	hook.hooknum = NF_INET_LOCAL_IN;	// Gemme all!!!
 	hook.pf = PF_INET;			// but only ipv4
-	hook.priority = NF_IP_PRI_FIRST;	// respect my prioritah
+	hook.priority = NF_IP_PRI_FIRST;	// respect my priority, I will be first
 
 		// Hock it!
 	ret = nf_register_hook(&hook);
