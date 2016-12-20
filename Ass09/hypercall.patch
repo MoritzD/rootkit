@@ -1,0 +1,26 @@
+diff --git a/x86.c b/x86.c
+index 09cc50a..c907a49 100644
+--- a/x86.c
++++ b/x86.c
+@@ -5996,6 +5996,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+ 		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
+ 		ret = 0;
+ 		break;
++	case KVM_HC_COUSTOM:
++		printk("KVM: Coustom Hypercall was called message: %lx\n",a0);
++		break;
+ 	default:
+ 		ret = -KVM_ENOSYS;
+ 		break;
+*** kvm_para_backup.h	2016-12-18 17:52:50.411456643 +0100
+--- kvm_para.h	2016-12-18 18:13:43.288112544 +0100
+***************
+*** 23,28 ****
+--- 23,29 ----
+  #define KVM_HC_MIPS_GET_CLOCK_FREQ	6
+  #define KVM_HC_MIPS_EXIT_VM		7
+  #define KVM_HC_MIPS_CONSOLE_OUTPUT	8
++ #define KVM_HC_COUSTOM 99
+  
+  /*
+   * hypercalls use architecture specific
