@@ -23,13 +23,16 @@ static int __init init_mod(void)
 	//void (*testf) (void) = (void*) testfunction;
 	//unsigned long* testp;
 	int* a;// = 10;
+	int i = 0;
 	a = (int*) __get_free_page(GFP_KERNEL);
 	a[0] = 10;
 	printk("inserting...\n");
 	printk("Value %d, GVA %p GPA: %llx\n", a[0],  a, (long long unsigned )virt_to_phys(a));
 	kvm_hypercall1(88,virt_to_phys(a));
 	msleep(1000);
-	printk("Value %d, adress %p\n", a[0], a);
+	for(i = 0; i<10; i++) {
+		printk("Value %d, adress %p\n", a[i], a+i);
+	}
 	a[0] = 11;
 	printk("After write: Value %d, adress %p\n", a[0], a);
 	
