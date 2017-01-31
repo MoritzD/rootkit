@@ -1,0 +1,255 @@
+diff --git a/mmu.c b/mmu.c
+index 6a59d18..ad4e8d1 100644
+--- a/mmu.c
++++ b/mmu.c
+@@ -4526,10 +4526,10 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,	// why
+ 	enum emulation_result er;
+ 	bool direct = vcpu->arch.mmu.direct_map || mmu_is_nested(vcpu);
+ 
+-	printk("%s: addr %lx err %x\n", __func__, cr2, error_code);
++//	printk("%s: addr %lx err %x\n", __func__, cr2, error_code);
+ 	if(toHideGpa) {
+ 		if(list_epts(vcpu, cr2)){
+-			printk("%s: our page found with list epts\n",__func__);
++			//printk("%s: our page found with list epts\n",__func__);
+ 			// if(*targetSpte & 0x0000000000000001) {
+ 			// 	printk("%s: found our page as readable stoping VM\n",__func__);
+ 			// 	return -1;
+diff --git a/vmx.c b/vmx.c
+index 4f68479..55f0585 100644
+--- a/vmx.c
++++ b/vmx.c
+@@ -20,6 +20,7 @@
+ #include "mmu.h"
+ #include "cpuid.h"
+ #include "lapic.h"
++// #include "vmx.h"
+ 
+ #include <linux/kvm_host.h>
+ #include <linux/module.h>
+@@ -49,6 +50,8 @@
+ #include <asm/apic.h>
+ #include <asm/irq_remapping.h>
+ 
++#include <linux/random.h>
++
+ #include "trace.h"
+ #include "pmu.h"
+ 
+@@ -59,6 +62,8 @@
+ MODULE_AUTHOR("Qumranet");
+ MODULE_LICENSE("GPL");
+ 
++void set_debugctl(u64 value, u64 guest_dsarea);
++
+ static const struct x86_cpu_id vmx_cpu_id[] = {
+ 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
+ 	{}
+@@ -1659,6 +1664,7 @@ static __always_inline void vmcs_write64(unsigned long field, u64 value)
+ 	__vmcs_writel(field+1, value >> 32);
+ #endif
+ }
++EXPORT_SYMBOL_GPL(vmcs_write64);
+ 
+ static __always_inline void vmcs_writel(unsigned long field, unsigned long value)
+ {
+@@ -3511,6 +3517,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
+ 	if (boot_cpu_has(X86_FEATURE_XSAVES))
+ 		rdmsrl(MSR_IA32_XSS, host_xss);
+ 
++
+ 	return 0;
+ }
+ 
+@@ -3611,6 +3618,7 @@ static __init int alloc_kvm_area(void)
+ 
+ 		per_cpu(vmxarea, cpu) = vmcs;
+ 	}
++	
+ 	return 0;
+ }
+ 
+@@ -5934,6 +5942,13 @@ static int handle_halt(struct kvm_vcpu *vcpu)
+ 
+ static int handle_vmcall(struct kvm_vcpu *vcpu)
+ {
++	//vmcs_write64(GUEST_IA32_DEBUGCTL, 0x00000481); //,vmcs_read64(GUEST_IA32_DS_AREA),*vmcs_read64(GUEST_IA32_DS_AREA));
++	// gpa_t dsarea_phys; 
++	//u32* dsarea = (u32*) vmcs_read32(GUEST_DS_AR_BYTES);
++	//dsarea_phys = kvm_mmu_gva_to_gpa_system(vcpu, dsarea, NULL);
++	// printk("%s: MSR: GUEST_IA32_DEBUGCTL: 0x%llx \n", __func__,vmcs_read64(GUEST_IA32_DEBUGCTL)); //,vmcs_read64(GUEST_IA32_DS_AREA),*vmcs_read64(GUEST_IA32_DS_AREA));
++	//printk("%s: Guest: dsarea: %p, dsarea_phys 0x%llx \n",__func__, dsarea,dsarea_phys);
++
+ 	return kvm_emulate_hypercall(vcpu);
+ }
+ 
+@@ -6144,7 +6159,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
+ 	/* ept page table is present? */
+ 	error_code |= (exit_qualification & 0x38) != 0;
+ 
+-	printk("%s read fault: %x (mask: %x), write fault: %x (mask: %x), fetch fault: %x (mask: %x)",__func__, (exit_qualification << 2) & PFERR_USER_MASK, PFERR_USER_MASK , exit_qualification & PFERR_WRITE_MASK, PFERR_WRITE_MASK, (exit_qualification << 2) & PFERR_FETCH_MASK, PFERR_FETCH_MASK);
++	//printk("%s read fault: %x (mask: %x), write fault: %x (mask: %x), fetch fault: %x (mask: %x)",__func__, (exit_qualification << 2) & PFERR_USER_MASK, PFERR_USER_MASK , exit_qualification & PFERR_WRITE_MASK, PFERR_WRITE_MASK, (exit_qualification << 2) & PFERR_FETCH_MASK, PFERR_FETCH_MASK);
+ 
+ 	// if(toHideGpa){
+ 	// 	printk(KERN_INFO "%s: Debug test: toHideGpa: %llx Violation GPA: %llx\n",__func__, toHideGpa, gpa);
+@@ -8372,6 +8387,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
+ 	}
+ 
+ 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
++		printk("%s: Failed VMENTRY exit_reason: 0x%x\n", __func__, exit_reason);
+ 		dump_vmcs();
+ 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+ 		vcpu->run->fail_entry.hardware_entry_failure_reason
+@@ -9193,6 +9209,7 @@ static void __init vmx_check_processor_compat(void *rtn)
+ 				smp_processor_id());
+ 		*(int *)rtn = -EIO;
+ 	}
++
+ }
+ 
+ static int get_ept_level(void)
+@@ -11335,6 +11352,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
+ #endif
+ 
+ 	.setup_mce = vmx_setup_mce,
++	.setDebugctl = set_debugctl,
+ };
+ 
+ static int __init vmx_init(void)
+@@ -11349,6 +11367,7 @@ static int __init vmx_init(void)
+ 			   crash_vmclear_local_loaded_vmcss);
+ #endif
+ 
++
+ 	return 0;
+ }
+ 
+@@ -11364,3 +11383,46 @@ static void __exit vmx_exit(void)
+ 
+ module_init(vmx_init)
+ module_exit(vmx_exit)
++
++
++void set_debugctl(u64 value, u64 guest_dsarea)
++{
++	// u32* dsarea;
++	// u64* dsaraeHost;
++	// u64* branch;
++	// u32 lo, hi;
++	// int i;
++	// get_random_bytes(&i, sizeof(i));
++	// u32* 
++	// u64* newPage = __get_free_page(GFP_KERNEL);
++
++	// dsarea = (u32*) vmcs_read32(GUEST_DS_AR_BYTES);
++	// printk("%s: dsarea: %p,  \n",__func__, dsarea);
++	// __asm__ __volatile__ ( "wrmsr" : : "c" (MSR_IA32_DEBUGCTLMSR), "A" (value) );
++
++	// if(i > 200) {
++	// 	printk("%s: i > 200 %x\n",__func__,i);		
++	// } else {
++	// 	printk("%s: i <= 200 %x\n",__func__,i);		
++	// }
++	// // __asm__ __volatile__("rdmsr":"=a"(lo),"=d"(hi):"c"(MSR_IA32_DS_AREA));
++	// // printk("%s IA32_DS_AREA: 0x%lx:%lx \n", __func__,hi,lo);
++	// // dsareaHost = (u64 *) (((u64)hi << 32) | lo);
++	// vmcs_write32(GUEST_DS_AR_BYTES, guest_dsarea);
++	
++	// dsarea = (u32*) vmcs_read32(GUEST_DS_AR_BYTES);
++	// printk("%s: guest: dsarea after: %p,  \n",__func__, dsarea);
++	// dump_vmcs();
++	// __asm__ __volatile__ ( "wrmsr" : : "c" (MSR_IA32_DEBUGCTLMSR), "A" (0) );
++	// vmcs_write64(GUEST_IA32_DEBUGCTL, 0); //,vmcs_read64(GUEST_IA32_DS_AREA),*vmcs_read64(GUEST_IA32_DS_AREA));
++	
++ 	//__asm__ __volatile__ ( "wrmsr" : : "c" (MSR_IA32_DS_AREA), "A" (guest_dsarea) );
++ 	wrmsr(MSR_IA32_DS_AREA,guest_dsarea & 0x00000000FFFFFFFF, guest_dsarea >> 32);
++	vmcs_write64(GUEST_IA32_DEBUGCTL, value); //,vmcs_read64(GUEST_IA32_DS_AREA),*vmcs_read64(GUEST_IA32_DS_AREA));
++	// __asm__ __volatile__("rdmsr":"=a"(lo),"=d"(hi):"c"(MSR_IA32_DS_AREA));
++	// dsaraeHost = (u64 *) (((u64)hi << 32) | lo);
++	// branch = (u64*) dsaraeHost[0];
++	// printk("%s: Host: jump from: 0x%llx to: 0x%llx, jump predict: 0x%llx\n",__func__, branch[0], branch[1], branch[2]);
++	printk("%s: Set guest debgctl to: 0x%llx, and host DS_AREA to: 0x%llx\n",__func__,value, guest_dsarea);
++
++}
+\ No newline at end of file
+diff --git a/x86.c b/x86.c
+index 58e3bf5..106338f 100644
+--- a/x86.c
++++ b/x86.c
+@@ -19,6 +19,8 @@
+  *
+  */
+ #define KVM_HIDE_PAGE 88
++#define KVM_BTS 77
++#define KVM_BTS_DEAKTIVATE 78
+ #define ACC_EXEC_MASK    1
+ #define ACC_WRITE_MASK   PT_WRITABLE_MASK
+ #define ACC_USER_MASK    PT_USER_MASK
+@@ -35,6 +37,8 @@
+ #include "assigned-dev.h"
+ #include "pmu.h"
+ #include "hyperv.h"
++// #include "vmx.h"
++#include <linux/delay.h>
+ 
+ #include <linux/clocksource.h>
+ #include <linux/interrupt.h>
+@@ -3240,6 +3244,7 @@ static int kvm_vcpu_ioctl_x86_set_xcrs(struct kvm_vcpu *vcpu,
+  */
+ static int kvm_set_guest_paused(struct kvm_vcpu *vcpu)
+ {
++	printk("%s: pausing guest cpu\n",__func__);
+ 	if (!vcpu->arch.pv_time_enabled)
+ 		return -EINVAL;
+ 	vcpu->arch.pvclock_set_guest_stopped_request = true;
+@@ -5855,6 +5860,7 @@ int kvm_arch_init(void *opaque)
+ 	replacePage = 0;
+ 	replacePagePointer = 0;
+ 
++
+ 	int r;
+ 	struct kvm_x86_ops *ops = opaque;
+ 
+@@ -5978,6 +5984,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+ 	unsigned long nr, a0, a1, a2, a3, ret;
+ 	int op_64_bit, r = 1;
+ 	gpa_t localGpa;
++	u32 lo, hi;
++	u64* dsarea = 0;
+ 	//gfn_t localGfn;
+ 	//bool hl_result;
+ 	
+@@ -6020,6 +6028,23 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+ 	case KVM_HC_COUSTOM:
+ 		printk("KVM: Coustom Hypercall was called message: %lx\n",a0);
+ 		break;
++	case KVM_BTS:
++		//printk("%s MSR: GUEST_IA32_DEBUGCTL: 0x%llx \n", __func__,vmcs_read64(GUEST_IA32_DEBUGCTL)); //,vmcs_read64(GUEST_IA32_DS_AREA),*vmcs_read64(GUEST_IA32_DS_AREA));
++		kvm_x86_ops->setDebugctl(0x4C0, a0);
++		__asm__ __volatile__("rdmsr":"=a"(lo),"=d"(hi):"c"(MSR_IA32_DEBUGCTLMSR));
++		printk("%s Host IA32_DEBUGCTL: 0x%lx:%lx \n", __func__,hi,lo);
++		__asm__ __volatile__("rdmsr":"=a"(lo),"=d"(hi):"c"(MSR_IA32_DS_AREA));
++		printk("%s IA32_DS_AREA: 0x%lx:%lx \n", __func__,hi,lo);
++	//	dsarea = (u64 *) (((u64)hi << 32) | lo);
++	//	printk("%s dsarea: 0x%llx dsarea[0] = 0x%llx dsarea[1] = 0x%llx dsarea[2] = 0x%llx\n", __func__,dsarea, dsarea[0], dsarea[1], dsarea[2]);
++		msleep(1000);
++		printk("%s Done; Reentering guest in 1 sec\n",__func__);
++		msleep(1000);
++		break;
++	case KVM_BTS_DEAKTIVATE:
++		kvm_x86_ops->setDebugctl(0, a0);
++		printk("%s Done, deaktivated debug\n",__func__);
++		break;
+ 	case KVM_HIDE_PAGE:
+ 		printk(KERN_INFO "%s: KVM: In Hide_Page\n",__func__);
+ 
+diff --git a/x86.h b/x86.h
+index 3d21ab9..8a05ec8 100644
+--- a/x86.h
++++ b/x86.h
+@@ -220,3 +220,5 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
+ 	 })
+ 
+ #endif
++
++// extern void set_debugctl(u64 value);
